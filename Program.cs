@@ -7,9 +7,13 @@ using QuestPDF.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString =
-    builder.Configuration["DATABASE_URL"]
-    ?? builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("No se encontró la cadena de conexión.");
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? $"Host={builder.Configuration["PGHOST"]};" +
+       $"Port={builder.Configuration["PGPORT"]};" +
+       $"Database={builder.Configuration["PGDATABASE"]};" +
+       $"Username={builder.Configuration["PGUSER"]};" +
+       $"Password={builder.Configuration["PGPASSWORD"]};" +
+       $"SSL Mode=Require;Trust Server Certificate=true";
 
 builder.Services.AddDbContext<PortafolioDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -35,14 +39,18 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        policy
+            .WithOrigins(
+                    "http://localhost:5173",
+                    "https://portafoliofront-production.up.railway.app"
+                )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
-
+app.UseCors("AllowFrontend");
 QuestPDF.Settings.License = LicenseType.Community;
 
 var app = builder.Build();
@@ -51,7 +59,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseCors("AllowAll");
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 
